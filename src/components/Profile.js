@@ -185,6 +185,7 @@ function Profile({ userId }) {
           const countryCities = grouped[country];
           const anyVisited = countryCities.some(city => city.voteType === 'liked' || city.voteType === 'disliked');
           const allDontKnow = countryCities.every(city => city.voteType === 'dont_know');
+          const noVotes = countryCities.every(city => city.voteType === undefined);
           const handleBulkDontKnow = async () => {
             for (const city of countryCities) {
               if (city.voteType !== 'dont_know') {
@@ -199,40 +200,77 @@ function Profile({ userId }) {
               }
             }
           };
+          // Был button style
+          const bylStyle = {
+            background: anyVisited ? '#4caf50' : '#e0e0e0',
+            color: anyVisited ? '#fff' : '#888',
+            border: 'none',
+            borderRadius: 8,
+            padding: '0.4rem 1.2rem',
+            fontWeight: 'bold',
+            cursor: 'default',
+            opacity: anyVisited ? 1 : 0.7
+          };
+          // Не был button style
+          let nebylStyle = {
+            background: '#e0e0e0',
+            color: '#888',
+            border: '1.5px solid #f44336',
+            borderRadius: 8,
+            padding: '0.4rem 1.2rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            opacity: 1,
+            transition: 'all 0.2s'
+          };
+          let nebylDisabled = false;
+          if (allDontKnow) {
+            nebylStyle = {
+              ...nebylStyle,
+              background: '#f44336',
+              color: '#fff',
+              border: '1.5px solid #f44336',
+              cursor: 'not-allowed',
+              opacity: 1
+            };
+            nebylDisabled = true;
+          } else if (anyVisited) {
+            nebylStyle = {
+              ...nebylStyle,
+              background: '#e0e0e0',
+              color: '#888',
+              border: '1.5px solid #e0e0e0',
+              cursor: 'not-allowed',
+              opacity: 0.7
+            };
+            nebylDisabled = true;
+          } else if (noVotes) {
+            nebylStyle = {
+              ...nebylStyle,
+              background: '#e0e0e0',
+              color: '#888',
+              border: '1.5px solid #f44336',
+              cursor: 'pointer',
+              opacity: 1
+            };
+            // Add hover effect
+            nebylStyle['boxShadow'] = '0 0 0 2px #f4433633';
+          }
           return (
             <div key={country} style={{ marginBottom: '2rem', padding: '1rem', background: '#f9f9fc', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
               <h3 style={{ marginBottom: '0.7rem' }}>{countryCities[0].flag} {country}</h3>
               {/* Был / Не был toggle */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                 <button
-                  style={{
-                    background: anyVisited ? '#4caf50' : '#e0e0e0',
-                    color: anyVisited ? '#fff' : '#888',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '0.4rem 1.2rem',
-                    fontWeight: 'bold',
-                    cursor: 'default',
-                    opacity: anyVisited ? 1 : 0.7
-                  }}
+                  style={bylStyle}
                   disabled
                 >
                   Был
                 </button>
                 <button
-                  style={{
-                    background: allDontKnow ? '#bdbdbd' : '#fffbe0',
-                    color: allDontKnow ? '#888' : '#f44336',
-                    border: '1px solid #f44336',
-                    borderRadius: 8,
-                    padding: '0.4rem 1.2rem',
-                    fontWeight: 'bold',
-                    cursor: allDontKnow ? 'not-allowed' : 'pointer',
-                    opacity: allDontKnow ? 0.7 : 1,
-                    transition: 'all 0.2s'
-                  }}
-                  disabled={allDontKnow}
-                  onClick={handleBulkDontKnow}
+                  style={nebylStyle}
+                  disabled={nebylDisabled}
+                  onClick={nebylDisabled ? undefined : handleBulkDontKnow}
                 >
                   Не был
                 </button>
