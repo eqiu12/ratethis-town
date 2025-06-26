@@ -196,10 +196,55 @@ function Voting({ userId }) {
     <div className="voting-ui">
       <div style={{ fontSize: '2rem', marginBottom: 8 }}>{city.flag} {city.name}</div>
       <div style={{ color: '#888', marginBottom: 16 }}>{city.country}</div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <button disabled={submitting} onClick={() => handleVote('disliked')} style={{ fontSize: '1.2rem', padding: '0.5rem 1.5rem', background: '#f44336', color: '#fff', border: 'none', borderRadius: 8 }}>👎 Дизлайк</button>
-        <button disabled={submitting} onClick={() => handleVote('dont_know')} style={{ fontSize: '1.2rem', padding: '0.5rem 1.5rem', background: '#bdbdbd', color: '#fff', border: 'none', borderRadius: 8 }}>🤷‍♂️ Не знаю</button>
-        <button disabled={submitting} onClick={() => handleVote('liked')} style={{ fontSize: '1.2rem', padding: '0.5rem 1.5rem', background: '#4caf50', color: '#fff', border: 'none', borderRadius: 8 }}>❤️ Лайк</button>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, width: '100%' }}>
+        <button
+          disabled={submitting}
+          onClick={() => handleVote('disliked')}
+          style={{
+            flex: 1,
+            fontSize: '1.2rem',
+            padding: '0.5rem 0',
+            background: '#f44336',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            minWidth: 0
+          }}
+        >
+          👎 Дизлайк
+        </button>
+        <button
+          disabled={submitting}
+          onClick={() => handleVote('dont_know')}
+          style={{
+            flex: 1,
+            fontSize: '1.2rem',
+            padding: '0.5rem 0',
+            background: '#bdbdbd',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            minWidth: 0
+          }}
+        >
+          🤷‍♂️ Не знаю
+        </button>
+        <button
+          disabled={submitting}
+          onClick={() => handleVote('liked')}
+          style={{
+            flex: 1,
+            fontSize: '1.2rem',
+            padding: '0.5rem 0',
+            background: '#4caf50',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            minWidth: 0
+          }}
+        >
+          ❤️ Лайк
+        </button>
       </div>
       <div style={{ color: '888' }}>Voted: {votedCount} / {totalCount}</div>
     </div>

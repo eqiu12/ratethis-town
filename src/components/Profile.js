@@ -24,6 +24,7 @@ function Profile({ userId }) {
   const [copied, setCopied] = useState(false);
   const [showVisitedOnly, setShowVisitedOnly] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Fetch all cities and user votes, then merge
   useEffect(() => {
@@ -124,6 +125,13 @@ function Profile({ userId }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 600);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <div className="profile-ui" style={{ padding: '2rem 1rem', maxWidth: 900, margin: '0 auto', position: 'relative' }}>
       <h2 style={{ marginBottom: '1rem' }}>Ваши голоса</h2>
@@ -173,76 +181,130 @@ function Profile({ userId }) {
       ) : cities.length === 0 ? (
         <div className="placeholder">Нет данных о городах.</div>
       ) : (
-        filteredCountries.sort().map(country => (
-          <div key={country} style={{ marginBottom: '2rem', padding: '1rem', background: '#f9f9fc', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            <h3 style={{ marginBottom: '0.7rem' }}>{grouped[country][0].flag} {country}</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1rem', background: '#fff', borderRadius: 8, overflow: 'hidden', tableLayout: 'fixed' }}>
-              <thead>
-                <tr style={{ background: '#f0f0f0' }}>
-                  <th style={{ textAlign: 'left', padding: 8, width: '30%' }}>Город</th>
-                  <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>Рейтинг</th>
-                  <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>Оценка</th>
-                  <th style={{ textAlign: 'left', padding: 8, width: '40%' }}>Изменить</th>
-                </tr>
-              </thead>
-              <tbody>
-                {grouped[country].map(city => (
-                  <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: 8, width: '30%' }}>{city.name}</td>
-                    <td style={{ padding: 8, width: '15%' }}>
-                      {(city.rating !== null && ((city.likes || 0) + (city.dislikes || 0) >= 10))
-                        ? (city.rating * 100).toFixed(1) + '%'
-                        : '⏳'}
-                    </td>
-                    <td style={{ padding: 8, fontSize: '1.2rem', width: '15%' }}>{VOTE_EMOJIS[city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know' ? city.voteType : null]}</td>
-                    <td style={{ padding: 8, width: '40%' }}>
-                      {['liked', 'disliked', 'dont_know'].map(type => {
-                        const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
-                        const isCurrent = hasVoted && city.voteType === type;
-                        const isChanging = changing[city.cityId];
-                        // For unvoted cities, all buttons are enabled and look the same (not highlighted)
-                        const baseStyle = {
-                          marginRight: 6,
-                          border: 'none',
-                          borderRadius: 6,
-                          padding: '0.3rem 0.8rem',
-                          color: '#fff',
-                          cursor: isChanging ? 'wait' : 'pointer',
-                          fontWeight: 'normal',
-                          opacity: 0.7,
-                          background: '#bbb',
-                          boxShadow: 'none',
-                          transform: 'scale(1)',
-                          transition: 'all 0.2s ease'
-                        };
-                        const votedStyle = hasVoted ? {
-                          fontWeight: isCurrent ? 'bold' : 'normal',
-                          opacity: isCurrent ? 1 : 0.6,
-                          background: isCurrent
-                            ? (type === 'liked' ? '#4caf50' : type === 'disliked' ? '#f44336' : '#bdbdbd')
-                            : '#ddd',
-                          boxShadow: isCurrent ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
-                          transform: isCurrent ? 'scale(1.05)' : 'scale(1)'
-                        } : {};
-                        const style = hasVoted ? { ...baseStyle, ...votedStyle } : baseStyle;
-                        return (
-                          <button
-                            key={type}
-                            disabled={isChanging}
-                            onClick={() => handleChangeVote(city.cityId, type)}
-                            style={style}
-                          >
-                            {VOTE_LABELS[type]}
-                          </button>
-                        );
-                      })}
-                    </td>
+        filteredCountries.sort().map(country => {
+          const countryCities = grouped[country];
+          const anyVisited = countryCities.some(city => city.voteType === 'liked' || city.voteType === 'disliked');
+          const allDontKnow = countryCities.every(city => city.voteType === 'dont_know');
+          const handleBulkDontKnow = async () => {
+            for (const city of countryCities) {
+              if (city.voteType !== 'dont_know') {
+                setChanging(ch => ({ ...ch, [city.cityId]: true }));
+                await fetch(`${API_URL}/api/change-vote`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId, cityId: city.cityId, voteType: 'dont_know' })
+                });
+                setCities(cities => cities.map(c => c.cityId === city.cityId ? { ...c, voteType: 'dont_know' } : c));
+                setChanging(ch => ({ ...ch, [city.cityId]: false }));
+              }
+            }
+          };
+          return (
+            <div key={country} style={{ marginBottom: '2rem', padding: '1rem', background: '#f9f9fc', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <h3 style={{ marginBottom: '0.7rem' }}>{countryCities[0].flag} {country}</h3>
+              {/* Был / Не был toggle */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                <button
+                  style={{
+                    background: anyVisited ? '#4caf50' : '#e0e0e0',
+                    color: anyVisited ? '#fff' : '#888',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '0.4rem 1.2rem',
+                    fontWeight: 'bold',
+                    cursor: 'default',
+                    opacity: anyVisited ? 1 : 0.7
+                  }}
+                  disabled
+                >
+                  Был
+                </button>
+                <button
+                  style={{
+                    background: allDontKnow ? '#bdbdbd' : '#fffbe0',
+                    color: allDontKnow ? '#888' : '#f44336',
+                    border: '1px solid #f44336',
+                    borderRadius: 8,
+                    padding: '0.4rem 1.2rem',
+                    fontWeight: 'bold',
+                    cursor: allDontKnow ? 'not-allowed' : 'pointer',
+                    opacity: allDontKnow ? 0.7 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                  disabled={allDontKnow}
+                  onClick={handleBulkDontKnow}
+                >
+                  Не был
+                </button>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1rem', background: '#fff', borderRadius: 8, overflow: 'hidden', tableLayout: 'fixed' }}>
+                <thead>
+                  <tr style={{ background: '#f0f0f0' }}>
+                    <th style={{ textAlign: 'left', padding: 8, width: '30%' }}>{isMobile ? '🏙️' : 'Город'}</th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>{isMobile ? '📊' : 'Рейтинг'}</th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>{isMobile ? '📝' : 'Оценка'}</th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '40%' }}>{isMobile ? '✏️' : 'Изменить'}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))
+                </thead>
+                <tbody>
+                  {countryCities.map(city => (
+                    <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: 8, width: '30%' }}>{city.name}</td>
+                      <td style={{ padding: 8, width: '15%' }}>
+                        {(city.rating !== null && ((city.likes || 0) + (city.dislikes || 0) >= 10))
+                          ? (city.rating * 100).toFixed(1) + '%'
+                          : '⏳'}
+                      </td>
+                      <td style={{ padding: 8, fontSize: '1.2rem', width: '15%' }}>{VOTE_EMOJIS[city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know' ? city.voteType : null]}</td>
+                      <td style={{ padding: 8, width: '40%' }}>
+                        {['liked', 'disliked', 'dont_know'].map(type => {
+                          const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
+                          const isCurrent = hasVoted && city.voteType === type;
+                          const isChanging = changing[city.cityId];
+                          // For unvoted cities, all buttons are enabled and look the same (not highlighted)
+                          const baseStyle = {
+                            marginRight: 6,
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '0.3rem 0.8rem',
+                            color: '#fff',
+                            cursor: isChanging ? 'wait' : 'pointer',
+                            fontWeight: 'normal',
+                            opacity: 0.7,
+                            background: '#bbb',
+                            boxShadow: 'none',
+                            transform: 'scale(1)',
+                            transition: 'all 0.2s ease'
+                          };
+                          const votedStyle = hasVoted ? {
+                            fontWeight: isCurrent ? 'bold' : 'normal',
+                            opacity: isCurrent ? 1 : 0.6,
+                            background: isCurrent
+                              ? (type === 'liked' ? '#4caf50' : type === 'disliked' ? '#f44336' : '#bdbdbd')
+                              : '#ddd',
+                            boxShadow: isCurrent ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
+                            transform: isCurrent ? 'scale(1.05)' : 'scale(1)'
+                          } : {};
+                          const style = hasVoted ? { ...baseStyle, ...votedStyle } : baseStyle;
+                          return (
+                            <button
+                              key={type}
+                              disabled={isChanging}
+                              onClick={() => handleChangeVote(city.cityId, type)}
+                              style={style}
+                            >
+                              {VOTE_LABELS[type]}
+                            </button>
+                          );
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })
       )}
       {/* Scroll to top button */}
       {showScrollTop && (

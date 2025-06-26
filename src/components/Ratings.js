@@ -8,6 +8,8 @@ function Ratings({ userId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hideUnpopular, setHideUnpopular] = useState(false);
+  const [sortColumn, setSortColumn] = useState('#');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     setLoading(true);
@@ -29,6 +31,39 @@ function Ratings({ userId }) {
   const filteredRatings = hideUnpopular 
     ? ratings.filter(city => (city.likes || 0) + (city.dislikes || 0) >= 10)
     : ratings;
+
+  // Sorting logic
+  const getSortValue = (city, col) => {
+    switch (col) {
+      case '#': return ratings.indexOf(city);
+      case 'Город': return city.name;
+      case 'Страна': return city.country;
+      case '📊': return mode === 'overall' ? city.rating : city.hiddenJamScore;
+      case '❤️': return city.likes || 0;
+      case '👎': return city.dislikes || 0;
+      case '🤷‍♂️': return city.dont_know || 0;
+      default: return '';
+    }
+  };
+
+  const sortedRatings = [...filteredRatings].sort((a, b) => {
+    const valA = getSortValue(a, sortColumn);
+    const valB = getSortValue(b, sortColumn);
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    } else {
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    }
+  });
+
+  const handleSort = (col) => {
+    if (sortColumn === col) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
 
   return (
     <div className="ratings-ui">
@@ -87,17 +122,19 @@ function Ratings({ userId }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ background: '#f0f0f0' }}>
-                <th style={{ textAlign: 'left', padding: 4 }}>#</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>Город</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>Страна</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>📊</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>❤️</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>👎</th>
-                <th style={{ textAlign: 'left', padding: 4 }}>🤷‍♂️</th>
+                {['#', 'Город', 'Страна', '📊', '❤️', '👎', '🤷‍♂️'].map(col => (
+                  <th
+                    key={col}
+                    style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === col ? '#e0eaff' : undefined }}
+                    onClick={() => handleSort(col)}
+                  >
+                    {col} {sortColumn === col ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {filteredRatings.map((city, idx) => (
+              {sortedRatings.map((city, idx) => (
                 <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: 4 }}>{idx + 1}</td>
                   <td style={{ padding: 4 }}>{city.flag} {city.name}</td>

@@ -8,17 +8,26 @@ import Profile from './components/Profile';
 function App() {
   const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
   const [tab, setTab] = useState('ratings'); // Start with ratings when not logged in
+  const [tabKey, setTabKey] = useState(0); // For forcing remount
 
   const handleLogin = (id) => {
     setUserId(id);
     localStorage.setItem('userId', id);
     setTab('voting'); // Switch to voting after login
+    setTabKey(k => k + 1);
   };
 
   const handleLogout = () => {
     setUserId('');
     localStorage.removeItem('userId');
     setTab('ratings'); // Go back to ratings after logout
+    setTabKey(k => k + 1);
+  };
+
+  // When switching tabs, increment tabKey to force remount
+  const handleTabSwitch = (newTab) => {
+    setTab(newTab);
+    setTabKey(k => k + 1);
   };
 
   return (
@@ -45,21 +54,21 @@ function App() {
       <div className="nav-tabs" style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 24 }}>
         {userId && (
           <button
-            onClick={() => setTab('voting')}
+            onClick={() => handleTabSwitch('voting')}
             style={{ fontWeight: tab === 'voting' ? 'bold' : 'normal', border: 'none', background: 'none', fontSize: '1.1rem', cursor: 'pointer', borderBottom: tab === 'voting' ? '2px solid #4f8cff' : '2px solid transparent', padding: '0.5rem 1.5rem' }}
           >
             Голосование
           </button>
         )}
         <button
-          onClick={() => setTab('ratings')}
+          onClick={() => handleTabSwitch('ratings')}
           style={{ fontWeight: tab === 'ratings' ? 'bold' : 'normal', border: 'none', background: 'none', fontSize: '1.1rem', cursor: 'pointer', borderBottom: tab === 'ratings' ? '2px solid #4f8cff' : '2px solid transparent', padding: '0.5rem 1.5rem' }}
         >
           Рейтинг
         </button>
         {userId && (
           <button
-            onClick={() => setTab('profile')}
+            onClick={() => handleTabSwitch('profile')}
             style={{ fontWeight: tab === 'profile' ? 'bold' : 'normal', border: 'none', background: 'none', fontSize: '1.1rem', cursor: 'pointer', borderBottom: tab === 'profile' ? '2px solid #4f8cff' : '2px solid transparent', padding: '0.5rem 1.5rem' }}
           >
             Профиль
@@ -71,7 +80,7 @@ function App() {
       {tab === 'voting' && userId && (
         <div className="main-layout">
           <div className="voting-area">
-            <Voting userId={userId} />
+            <Voting key={`voting-${userId}-${tabKey}`} userId={userId} />
           </div>
           <div className="ratings-area">
             <Ratings userId={userId} />
@@ -88,7 +97,7 @@ function App() {
       {tab === 'profile' && userId && (
         <div className="main-layout">
           <div className="profile-area" style={{ width: '100%' }}>
-            <Profile userId={userId} />
+            <Profile key={`profile-${userId}-${tabKey}`} userId={userId} />
           </div>
         </div>
       )}
