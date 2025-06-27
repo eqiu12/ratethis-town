@@ -16,6 +16,7 @@ function Voting({ userId }) {
   const [votedCount, setVotedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -32,6 +33,13 @@ function Voting({ userId }) {
         setLoading(false);
       });
   }, [userId]);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 600);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleVote = (voteType) => {
     if (!cities.length) return;
@@ -201,33 +209,36 @@ function Voting({ userId }) {
 
   return (
     <div className="voting-ui" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '50%', minWidth: 220, maxWidth: 500, textAlign: 'center', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', padding: '1.2rem 1.5rem 2.5rem 1.5rem', minHeight: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: isMobile ? '95%' : '50%', minWidth: 220, maxWidth: 500, textAlign: 'center', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', padding: '1.2rem 1.5rem 2.5rem 1.5rem', minHeight: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: 8 }}>{city.flag} {city.name}</div>
         <div style={{ color: '#888', marginBottom: 16 }}>{city.country}</div>
-        <div className="voting-buttons-row" style={{ marginTop: 8 }}>
+        <div className="voting-buttons-row" style={{ marginTop: 8, justifyContent: isMobile ? 'center' : undefined, width: '100%' }}>
           <button
             disabled={submitting}
             onClick={() => handleVote('disliked')}
             className="voting-btn voting-btn--dislike"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+            style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.1, width: '100%' }}
           >
-            👎 Дизлайк
+            <span style={{ fontSize: '1.3em', lineHeight: 1 }}>👎</span>
+            <span style={{ fontSize: '0.95em', marginTop: 2 }}>Дизлайк</span>
           </button>
           <button
             disabled={submitting}
             onClick={() => handleVote('dont_know')}
             className="voting-btn voting-btn--dontknow"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+            style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.1, width: '100%' }}
           >
-            🤷‍♂️ Не был(а)
+            <span style={{ fontSize: '1.3em', lineHeight: 1 }}>🤷‍♂️</span>
+            <span style={{ fontSize: '0.95em', marginTop: 2 }}>Не был(а)</span>
           </button>
           <button
             disabled={submitting}
             onClick={() => handleVote('liked')}
             className="voting-btn voting-btn--like"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+            style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.1, width: '100%' }}
           >
-            ❤️ Лайк
+            <span style={{ fontSize: '1.3em', lineHeight: 1 }}>❤️</span>
+            <span style={{ fontSize: '0.95em', marginTop: 2 }}>Лайк</span>
           </button>
         </div>
         <div style={{ color: '#888', fontSize: '0.9rem', marginTop: 8 }}>Voted: {votedCount} / {totalCount}</div>

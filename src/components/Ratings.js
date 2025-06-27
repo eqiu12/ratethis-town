@@ -64,19 +64,25 @@ function Ratings({ userId, compact }) {
           let ratingSum = 0, ratingCount = 0;
           let hiddenSum = 0, hiddenCount = 0;
           let flag = cities[0]?.flag || '';
+          // Sum up all votes for the country
           cities.forEach(city => {
             likes += city.likes || 0;
             dislikes += city.dislikes || 0;
             dont_know += city.dont_know || 0;
-            if (typeof city.rating === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
-              ratingSum += city.rating;
-              ratingCount++;
-            }
-            if (typeof city.hiddenJamScore === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
-              hiddenSum += city.hiddenJamScore;
-              hiddenCount++;
-            }
           });
+          // Only include cities with a rating in the average, but threshold is for the country
+          if ((likes + dislikes) >= 10) {
+            cities.forEach(city => {
+              if (typeof city.rating === 'number') {
+                ratingSum += city.rating;
+                ratingCount++;
+              }
+              if (typeof city.hiddenJamScore === 'number') {
+                hiddenSum += city.hiddenJamScore;
+                hiddenCount++;
+              }
+            });
+          }
           return {
             country,
             flag,
@@ -95,6 +101,17 @@ function Ratings({ userId, compact }) {
       });
     }
   }, [mode, entity]);
+
+  // When switching entity, set default sort for country
+  useEffect(() => {
+    if (entity === 'country') {
+      setSortColumn('📊');
+      setSortDirection('desc');
+    } else if (entity === 'city') {
+      setSortColumn('#');
+      setSortDirection('asc');
+    }
+  }, [entity]);
 
   // Filter cities/countries based on the toggle
   const filteredRatings = hideUnpopular 
@@ -251,7 +268,7 @@ function Ratings({ userId, compact }) {
         <div className="placeholder">{error}</div>
       ) : (
         <div style={{ maxHeight: 600, overflowY: 'auto', width: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <table className="ratings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               {entity === 'city' ? (
                 <tr style={{ background: '#f0f0f0' }}>
