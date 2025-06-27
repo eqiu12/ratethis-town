@@ -1,0 +1,55 @@
+.voting-buttons-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  width: 100%;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.voting-btn {
+  flex: 1 1 0;
+  font-size: 1.2rem;
+  padding: 0.5rem 0;
+  border: none;
+  border-radius: 8px;
+  min-width: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.voting-btn--dislike {
+  background: #f44336;
+}
+.voting-btn--dislike:active {
+  background: #d32f2f;
+}
+
+.voting-btn--dontknow {
+  background: #bdbdbd;
+  color: #fff;
+}
+.voting-btn--dontknow:active {
+  background: #9e9e9e;
+}
+
+.voting-btn--like {
+  background: #4caf50;
+}
+.voting-btn--like:active {
+  background: #388e3c;
+}
+
+@media (max-width: 600px) {
+  .voting-buttons-row {
+    max-width: 100%;
+    gap: 8px;
+  }
+  .voting-btn {
+    font-size: 1rem;
+    padding: 0.5rem 0;
+  }
+} 

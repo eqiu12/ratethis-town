@@ -5,7 +5,7 @@ const API_URL = 'https://telegram-city-rater-backend.onrender.com';
 const VOTE_LABELS = {
   liked: '❤️ Лайк',
   disliked: '👎 Дизлайк',
-  dont_know: '🤷‍♂️ Не знаю',
+  dont_know: '🤷‍♂️ Не был(а)',
 };
 
 const VOTE_EMOJIS = {
@@ -23,8 +23,12 @@ function Profile({ userId }) {
   const [changing, setChanging] = useState({}); // cityId: true/false
   const [copied, setCopied] = useState(false);
   const [showVisitedOnly, setShowVisitedOnly] = useState(false);
+  const [showUnvisitedOnly, setShowUnvisitedOnly] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hideVisited, setHideVisited] = useState(false);
+  const [hideVisitedCountries, setHideVisitedCountries] = useState(false);
+  const [countrySorts, setCountrySorts] = useState({}); // { [country]: { column: 'name'|'rating'|'vote', direction: 'asc'|'desc' } }
 
   // Fetch all cities and user votes, then merge
   useEffect(() => {
@@ -104,7 +108,15 @@ function Profile({ userId }) {
   const visitedCountries = Object.keys(grouped).filter(country =>
     grouped[country].some(city => city.voteType === 'liked' || city.voteType === 'disliked')
   );
-  const filteredCountries = showVisitedOnly ? visitedCountries : Object.keys(grouped);
+  const unvisitedCountries = Object.keys(grouped).filter(country =>
+    grouped[country].every(city => city.voteType !== 'liked' && city.voteType !== 'disliked')
+  );
+  let filteredCountries = Object.keys(grouped);
+  if (showVisitedOnly) {
+    filteredCountries = visitedCountries;
+  } else if (showUnvisitedOnly) {
+    filteredCountries = unvisitedCountries;
+  }
 
   // Statistics
   const visitedCities = cities.filter(c => c.voteType === 'liked' || c.voteType === 'disliked').length;
@@ -154,7 +166,7 @@ function Profile({ userId }) {
         <p style={{ margin: 0, whiteSpace: 'pre-line' }}>
           ❤️ <strong>Лайк</strong> — город понравился (засчитывается как посещение)
           <br />👎 <strong>Дизлайк</strong> — город не понравился (засчитывается как посещение)
-          <br />🤷‍♂️ <strong>Не знаю</strong> — не посещали этот город
+          <br />🤷‍♂️ <strong>Не был(а)</strong> — не посещали этот город
         </p>
       </div>
       {/* Statistics and toggle */}
@@ -168,10 +180,32 @@ function Profile({ userId }) {
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4f8cff' }}>{visitedCountries.length}/{totalCountries}</div>
             <div style={{ fontSize: '0.9rem', color: '#666' }}>стран посещено</div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.95rem', marginLeft: 'auto' }}>
-            <input type="checkbox" checked={showVisitedOnly} onChange={e => setShowVisitedOnly(e.target.checked)} style={{ marginRight: 4 }} />
-            Оставить только посещенные страны
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.95rem' }}>
+              <input
+                type="checkbox"
+                checked={showVisitedOnly}
+                onChange={e => {
+                  setShowVisitedOnly(e.target.checked);
+                  if (e.target.checked) setShowUnvisitedOnly(false);
+                }}
+                style={{ marginRight: 4 }}
+              />
+              Оставить только посещенные страны
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.95rem' }}>
+              <input
+                type="checkbox"
+                checked={showUnvisitedOnly}
+                onChange={e => {
+                  setShowUnvisitedOnly(e.target.checked);
+                  if (e.target.checked) setShowVisitedOnly(false);
+                }}
+                style={{ marginRight: 4 }}
+              />
+              Убрать посещенные страны
+            </label>
+          </div>
         </div>
       )}
       {loading ? (
@@ -183,6 +217,59 @@ function Profile({ userId }) {
       ) : (
         filteredCountries.sort().map(country => {
           const countryCities = grouped[country];
+          // Calculate country overall rating
+          let totalLikes = 0, totalDislikes = 0, totalDontKnow = 0;
+          let ratingSum = 0, ratingCount = 0;
+          countryCities.forEach(city => {
+            totalLikes += city.likes || 0;
+            totalDislikes += city.dislikes || 0;
+            totalDontKnow += city.dont_know || 0;
+            if (typeof city.rating === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
+              ratingSum += city.rating;
+              ratingCount++;
+            }
+          });
+          // Country overall rating: weighted average of city ratings (or just average)
+          const countryRating = ratingCount > 0 ? ratingSum / ratingCount : null;
+          // Sorting logic
+          const sort = countrySorts[country] || { column: 'name', direction: 'asc' };
+          const sortedCities = [...countryCities].sort((a, b) => {
+            if (sort.column === 'name') {
+              return sort.direction === 'asc'
+                ? a.name.localeCompare(b.name)
+                : b.name.localeCompare(a.name);
+            } else if (sort.column === 'rating') {
+              // Nulls last
+              const aRating = a.rating === null ? -Infinity : a.rating;
+              const bRating = b.rating === null ? -Infinity : b.rating;
+              return sort.direction === 'asc' ? aRating - bRating : bRating - aRating;
+            } else if (sort.column === 'vote') {
+              // Order: liked > disliked > dont_know > undefined
+              const voteOrder = v => v === 'liked' ? 3 : v === 'disliked' ? 2 : v === 'dont_know' ? 1 : 0;
+              return sort.direction === 'asc'
+                ? voteOrder(a.voteType) - voteOrder(b.voteType)
+                : voteOrder(b.voteType) - voteOrder(a.voteType);
+            }
+            return 0;
+          });
+          // Sort icon helpers
+          const getSortIcon = (col) => {
+            if (sort.column !== col) return null;
+            if (col === 'name') return sort.direction === 'asc' ? '▲' : '▼';
+            if (col === 'rating') return sort.direction === 'asc' ? '▲' : '▼';
+            if (col === 'vote') return sort.direction === 'asc' ? '▲' : '▼';
+            return null;
+          };
+          const handleSort = (col) => {
+            setCountrySorts(sorts => {
+              const prev = sorts[country] || { column: 'name', direction: 'asc' };
+              if (prev.column === col) {
+                return { ...sorts, [country]: { column: col, direction: prev.direction === 'asc' ? 'desc' : 'asc' } };
+              } else {
+                return { ...sorts, [country]: { column: col, direction: 'asc' } };
+              }
+            });
+          };
           const anyVisited = countryCities.some(city => city.voteType === 'liked' || city.voteType === 'disliked');
           const allDontKnow = countryCities.every(city => city.voteType === 'dont_know');
           const noVotes = countryCities.every(city => city.voteType === undefined);
@@ -258,7 +345,14 @@ function Profile({ userId }) {
           }
           return (
             <div key={country} style={{ marginBottom: '2rem', padding: '1rem', background: '#f9f9fc', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <h3 style={{ marginBottom: '0.7rem' }}>{countryCities[0].flag} {country}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.7rem' }}>
+                <h3 style={{ margin: 0, flex: 1 }}>{countryCities[0].flag} {country}</h3>
+                {countryRating !== null && (
+                  <span style={{ fontSize: '2.1rem', fontWeight: 700, color: '#4f8cff', minWidth: 90, textAlign: 'right', display: 'inline-block' }}>
+                    {Math.round(countryRating * 100)}%
+                  </span>
+                )}
+              </div>
               {/* Был / Не был toggle */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                 <button
@@ -278,63 +372,76 @@ function Profile({ userId }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1rem', background: '#fff', borderRadius: 8, overflow: 'hidden', tableLayout: 'fixed' }}>
                 <thead>
                   <tr style={{ background: '#f0f0f0' }}>
-                    <th style={{ textAlign: 'left', padding: 8, width: '30%' }}>{isMobile ? '🏙️' : 'Город'}</th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>{isMobile ? '📊' : 'Рейтинг'}</th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '15%' }}>{isMobile ? '📝' : 'Оценка'}</th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '40%' }}>{isMobile ? '✏️' : 'Изменить'}</th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '50%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                      {isMobile ? '🏙️' : 'Город'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('name')}</span>
+                    </th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rating')}>
+                      {isMobile ? '📊' : 'Рейтинг'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('rating')}</span>
+                    </th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vote')}>
+                      {isMobile ? '📝' : 'Оценка'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('vote')}</span>
+                    </th>
+                    <th style={{ textAlign: 'left', padding: 8, width: '20%' }}>{isMobile ? '✏️' : 'Изменить'}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {countryCities.map(city => (
+                  {sortedCities.map(city => (
                     <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: 8, width: '30%' }}>{city.name}</td>
+                      <td style={{ padding: 8, width: '50%' }}>{city.name}</td>
                       <td style={{ padding: 8, width: '15%' }}>
                         {(city.rating !== null && ((city.likes || 0) + (city.dislikes || 0) >= 10))
-                          ? (city.rating * 100).toFixed(1) + '%'
+                          ? Math.round(city.rating * 100) + '%'
                           : '⏳'}
                       </td>
                       <td style={{ padding: 8, fontSize: '1.2rem', width: '15%' }}>{VOTE_EMOJIS[city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know' ? city.voteType : null]}</td>
-                      <td style={{ padding: 8, width: '40%' }}>
-                        {['liked', 'disliked', 'dont_know'].map(type => {
-                          const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
-                          const isCurrent = hasVoted && city.voteType === type;
-                          const isChanging = changing[city.cityId];
-                          // For unvoted cities, all buttons are enabled and look the same (not highlighted)
-                          const baseStyle = {
-                            marginRight: 6,
-                            border: 'none',
-                            borderRadius: 6,
-                            padding: '0.3rem 0.8rem',
-                            color: '#fff',
-                            cursor: isChanging ? 'wait' : 'pointer',
-                            fontWeight: 'normal',
-                            opacity: 0.7,
-                            background: '#bbb',
-                            boxShadow: 'none',
-                            transform: 'scale(1)',
-                            transition: 'all 0.2s ease'
-                          };
-                          const votedStyle = hasVoted ? {
-                            fontWeight: isCurrent ? 'bold' : 'normal',
-                            opacity: isCurrent ? 1 : 0.6,
-                            background: isCurrent
-                              ? (type === 'liked' ? '#4caf50' : type === 'disliked' ? '#f44336' : '#bdbdbd')
-                              : '#ddd',
-                            boxShadow: isCurrent ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
-                            transform: isCurrent ? 'scale(1.05)' : 'scale(1)'
-                          } : {};
-                          const style = hasVoted ? { ...baseStyle, ...votedStyle } : baseStyle;
-                          return (
-                            <button
-                              key={type}
-                              disabled={isChanging}
-                              onClick={() => handleChangeVote(city.cityId, type)}
-                              style={style}
-                            >
-                              {VOTE_LABELS[type]}
-                            </button>
-                          );
-                        })}
+                      <td style={{ padding: 8, width: '20%', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+                          {['liked', 'disliked', 'dont_know'].map(type => {
+                            const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
+                            const isCurrent = hasVoted && city.voteType === type;
+                            const isChanging = changing[city.cityId];
+                            const baseStyle = {
+                              marginRight: 2,
+                              border: 'none',
+                              borderRadius: 4,
+                              padding: '0.1rem 0.3rem',
+                              color: '#fff',
+                              cursor: isChanging ? 'wait' : 'pointer',
+                              fontWeight: 'normal',
+                              opacity: 0.7,
+                              background: '#bbb',
+                              boxShadow: 'none',
+                              transform: 'scale(1)',
+                              transition: 'all 0.2s ease',
+                              fontSize: '1.1rem',
+                              minWidth: 28,
+                              minHeight: 28,
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              lineHeight: 1.2
+                            };
+                            const votedStyle = hasVoted ? {
+                              fontWeight: isCurrent ? 'bold' : 'normal',
+                              opacity: isCurrent ? 1 : 0.6,
+                              background: isCurrent
+                                ? (type === 'liked' ? '#4caf50' : type === 'disliked' ? '#f44336' : '#bdbdbd')
+                                : '#ddd',
+                              boxShadow: isCurrent ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
+                              transform: isCurrent ? 'scale(1.05)' : 'scale(1)'
+                            } : {};
+                            const style = hasVoted ? { ...baseStyle, ...votedStyle } : baseStyle;
+                            return (
+                              <button
+                                key={type}
+                                disabled={isChanging}
+                                onClick={() => handleChangeVote(city.cityId, type)}
+                                style={style}
+                              >
+                                {VOTE_EMOJIS[type]}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </td>
                     </tr>
                   ))}

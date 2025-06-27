@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import './Voting.css';
 
 const API_URL = 'https://telegram-city-rater-backend.onrender.com';
+
+const VOTE_LABELS = {
+  liked: '❤️ Лайк',
+  disliked: '👎 Дизлайк',
+  dont_know: '🤷‍♂️ Не был(а)',
+};
 
 function Voting({ userId }) {
   const [cities, setCities] = useState([]);
@@ -193,60 +200,38 @@ function Voting({ userId }) {
   const city = cities[0];
 
   return (
-    <div className="voting-ui">
-      <div style={{ fontSize: '2rem', marginBottom: 8 }}>{city.flag} {city.name}</div>
-      <div style={{ color: '#888', marginBottom: 16 }}>{city.country}</div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, width: '100%' }}>
-        <button
-          disabled={submitting}
-          onClick={() => handleVote('disliked')}
-          style={{
-            flex: 1,
-            fontSize: '1.2rem',
-            padding: '0.5rem 0',
-            background: '#f44336',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            minWidth: 0
-          }}
-        >
-          👎 Дизлайк
-        </button>
-        <button
-          disabled={submitting}
-          onClick={() => handleVote('dont_know')}
-          style={{
-            flex: 1,
-            fontSize: '1.2rem',
-            padding: '0.5rem 0',
-            background: '#bdbdbd',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            minWidth: 0
-          }}
-        >
-          🤷‍♂️ Не знаю
-        </button>
-        <button
-          disabled={submitting}
-          onClick={() => handleVote('liked')}
-          style={{
-            flex: 1,
-            fontSize: '1.2rem',
-            padding: '0.5rem 0',
-            background: '#4caf50',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            minWidth: 0
-          }}
-        >
-          ❤️ Лайк
-        </button>
+    <div className="voting-ui" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '50%', minWidth: 220, maxWidth: 500, textAlign: 'center', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', padding: '1.2rem 1.5rem 2.5rem 1.5rem', minHeight: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: '2rem', marginBottom: 8 }}>{city.flag} {city.name}</div>
+        <div style={{ color: '#888', marginBottom: 16 }}>{city.country}</div>
+        <div className="voting-buttons-row" style={{ marginTop: 8 }}>
+          <button
+            disabled={submitting}
+            onClick={() => handleVote('disliked')}
+            className="voting-btn voting-btn--dislike"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+          >
+            👎 Дизлайк
+          </button>
+          <button
+            disabled={submitting}
+            onClick={() => handleVote('dont_know')}
+            className="voting-btn voting-btn--dontknow"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+          >
+            🤷‍♂️ Не был(а)
+          </button>
+          <button
+            disabled={submitting}
+            onClick={() => handleVote('liked')}
+            className="voting-btn voting-btn--like"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 1.1rem' }}
+          >
+            ❤️ Лайк
+          </button>
+        </div>
+        <div style={{ color: '#888', fontSize: '0.9rem', marginTop: 8 }}>Voted: {votedCount} / {totalCount}</div>
       </div>
-      <div style={{ color: '888' }}>Voted: {votedCount} / {totalCount}</div>
     </div>
   );
 }

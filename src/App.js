@@ -83,7 +83,7 @@ function App() {
             <Voting key={`voting-${userId}-${tabKey}`} userId={userId} />
           </div>
           <div className="ratings-area">
-            <Ratings userId={userId} />
+            <Ratings userId={userId} compact={true} />
           </div>
         </div>
       )}

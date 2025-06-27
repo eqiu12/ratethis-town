@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 
 const API_URL = 'https://telegram-city-rater-backend.onrender.com';
 
-function Ratings({ userId }) {
+function Ratings({ userId, compact }) {
+  const [entity, setEntity] = useState('city'); // 'city' or 'country'
   const [mode, setMode] = useState('overall');
   const [ratings, setRatings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,39 +11,119 @@ function Ratings({ userId }) {
   const [hideUnpopular, setHideUnpopular] = useState(false);
   const [sortColumn, setSortColumn] = useState('#');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [allCities, setAllCities] = useState([]); // for country ratings
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const endpoint = mode === 'overall' ? '/api/rankings' : '/api/hidden-jam-ratings';
-    fetch(`${API_URL}${endpoint}`)
-      .then(res => res.json())
-      .then(data => {
-        setRatings(data);
+    if (entity === 'city') {
+      const endpoint = mode === 'overall' ? '/api/rankings' : '/api/hidden-jam-ratings';
+      fetch(`${API_URL}${endpoint}`)
+        .then(res => res.json())
+        .then(data => {
+          setRatings(data);
+          setLoading(false);
+        })
+        .catch(() => {
+          setError('Failed to load ratings');
+          setLoading(false);
+        });
+    } else {
+      // Fetch all cities and calculate country ratings
+      Promise.all([
+        fetch(`${API_URL}/api/all-cities`).then(res => res.json()),
+        fetch(`${API_URL}/api/rankings`).then(res => res.json()),
+        fetch(`${API_URL}/api/hidden-jam-ratings`).then(res => res.json()),
+      ]).then(([citiesData, rankingsData, hiddenJamData]) => {
+        const rankingsMap = {};
+        (rankingsData || []).forEach(r => { rankingsMap[r.cityId] = r; });
+        const hiddenJamMap = {};
+        (hiddenJamData || []).forEach(r => { hiddenJamMap[r.cityId] = r; });
+        const merged = (citiesData.cities || []).map(city => {
+          const r = rankingsMap[city.cityId];
+          const h = hiddenJamMap[city.cityId];
+          return {
+            ...city,
+            rating: r ? r.rating : null,
+            likes: r ? r.likes : 0,
+            dislikes: r ? r.dislikes : 0,
+            dont_know: r ? r.dont_know : 0,
+            hiddenJamScore: h ? h.hiddenJamScore : null
+          };
+        });
+        setAllCities(merged);
+        // Calculate country ratings
+        const grouped = {};
+        merged.forEach(city => {
+          if (!grouped[city.country]) grouped[city.country] = [];
+          grouped[city.country].push(city);
+        });
+        const countryRatings = Object.keys(grouped).map(country => {
+          const cities = grouped[country];
+          let likes = 0, dislikes = 0, dont_know = 0;
+          let ratingSum = 0, ratingCount = 0;
+          let hiddenSum = 0, hiddenCount = 0;
+          let flag = cities[0]?.flag || '';
+          cities.forEach(city => {
+            likes += city.likes || 0;
+            dislikes += city.dislikes || 0;
+            dont_know += city.dont_know || 0;
+            if (typeof city.rating === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
+              ratingSum += city.rating;
+              ratingCount++;
+            }
+            if (typeof city.hiddenJamScore === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
+              hiddenSum += city.hiddenJamScore;
+              hiddenCount++;
+            }
+          });
+          return {
+            country,
+            flag,
+            likes,
+            dislikes,
+            dont_know,
+            rating: ratingCount > 0 ? ratingSum / ratingCount : null,
+            hiddenJamScore: hiddenCount > 0 ? hiddenSum / hiddenCount : null
+          };
+        });
+        setRatings(countryRatings);
         setLoading(false);
-      })
-      .catch(() => {
-        setError('Failed to load ratings');
+      }).catch(() => {
+        setError('Failed to load country ratings');
         setLoading(false);
       });
-  }, [mode]);
+    }
+  }, [mode, entity]);
 
-  // Filter cities based on the toggle
+  // Filter cities/countries based on the toggle
   const filteredRatings = hideUnpopular 
-    ? ratings.filter(city => (city.likes || 0) + (city.dislikes || 0) >= 10)
+    ? ratings.filter(item => (item.likes || 0) + (item.dislikes || 0) >= 10)
     : ratings;
 
   // Sorting logic
-  const getSortValue = (city, col) => {
-    switch (col) {
-      case '#': return ratings.indexOf(city);
-      case 'Город': return city.name;
-      case 'Страна': return city.country;
-      case '📊': return mode === 'overall' ? city.rating : city.hiddenJamScore;
-      case '❤️': return city.likes || 0;
-      case '👎': return city.dislikes || 0;
-      case '🤷‍♂️': return city.dont_know || 0;
-      default: return '';
+  const getSortValue = (item, col) => {
+    if (entity === 'city') {
+      switch (col) {
+        case '#': return ratings.indexOf(item);
+        case 'Город': return item.name;
+        case 'Страна': return item.country;
+        case '📊': return mode === 'overall' ? item.rating : item.hiddenJamScore;
+        case '❤️': return item.likes || 0;
+        case '👎': return item.dislikes || 0;
+        case '🤷‍♂️': return item.dont_know || 0;
+        default: return '';
+      }
+    } else {
+      switch (col) {
+        case '#': return ratings.indexOf(item);
+        case 'Страна': return item.country;
+        case '📊': return mode === 'overall' ? item.rating : item.hiddenJamScore;
+        case '❤️': return item.likes || 0;
+        case '👎': return item.dislikes || 0;
+        case '🤷‍♂️': return item.dont_know || 0;
+        default: return '';
+      }
     }
   };
 
@@ -65,18 +146,69 @@ function Ratings({ userId }) {
     }
   };
 
+  // Format numbers with k for thousands, max 3 chars (except 100k+)
+  function formatVotes(num) {
+    if (num == null) return '';
+    if (num >= 100000) return Math.round(num / 1000) + 'k';
+    if (num >= 10000) return Math.round(num / 1000) + 'k';
+    if (num >= 1000) {
+      let n = Math.round(num / 100) / 10;
+      if (n >= 10) n = Math.round(n); // 10.0k -> 10k
+      return n + 'k';
+    }
+    return num.toString();
+  }
+
   return (
     <div className="ratings-ui">
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: compact ? '0.2rem' : '0.5rem', display: 'flex', flexDirection: 'row', gap: compact ? 8 : 12, alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'flex-start', textAlign: 'left' }}>
         <button
-          onClick={() => setMode('overall')}
-          style={{ 
-            fontWeight: mode === 'overall' ? 'bold' : 'normal', 
-            marginRight: 8,
+          onClick={() => setEntity('city')}
+          style={{
+            fontWeight: entity === 'city' ? 'bold' : 'normal',
+            marginRight: compact ? 4 : 8,
             border: 'none',
             borderRadius: 12,
-            padding: '0.7rem 1.5rem',
-            fontSize: '1rem',
+            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+            fontSize: compact ? '0.75rem' : '1rem',
+            cursor: 'pointer',
+            background: entity === 'city' ? '#4f8cff' : '#e0e0e0',
+            color: entity === 'city' ? '#fff' : '#666',
+            transition: 'all 0.2s ease',
+            boxShadow: entity === 'city' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
+          }}
+        >
+          Города
+        </button>
+        <button
+          onClick={() => setEntity('country')}
+          style={{
+            fontWeight: entity === 'country' ? 'bold' : 'normal',
+            marginRight: compact ? 8 : 16,
+            border: 'none',
+            borderRadius: 12,
+            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+            fontSize: compact ? '0.75rem' : '1rem',
+            cursor: 'pointer',
+            background: entity === 'country' ? '#4f8cff' : '#e0e0e0',
+            color: entity === 'country' ? '#fff' : '#666',
+            transition: 'all 0.2s ease',
+            boxShadow: entity === 'country' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
+          }}
+        >
+          Страны
+        </button>
+      </div>
+      <div style={{ marginBottom: compact ? '0.7rem' : '1rem', display: 'flex', flexDirection: 'row', gap: compact ? 8 : 12, alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'flex-start', textAlign: 'left' }}>
+        <button
+          onClick={() => setMode('overall')}
+          style={{
+            fontWeight: mode === 'overall' ? 'bold' : 'normal',
+            marginRight: compact ? 4 : 8,
+            border: 'none',
+            borderRadius: 12,
+            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+            fontSize: compact ? '0.75rem' : '1rem',
             cursor: 'pointer',
             background: mode === 'overall' ? '#4f8cff' : '#e0e0e0',
             color: mode === 'overall' ? '#fff' : '#666',
@@ -88,13 +220,13 @@ function Ratings({ userId }) {
         </button>
         <button
           onClick={() => setMode('hidden')}
-          style={{ 
-            fontWeight: mode === 'hidden' ? 'bold' : 'normal', 
-            marginRight: 16,
+          style={{
+            fontWeight: mode === 'hidden' ? 'bold' : 'normal',
+            marginRight: compact ? 8 : 16,
             border: 'none',
             borderRadius: 12,
-            padding: '0.7rem 1.5rem',
-            fontSize: '1rem',
+            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+            fontSize: compact ? '0.75rem' : '1rem',
             cursor: 'pointer',
             background: mode === 'hidden' ? '#4f8cff' : '#e0e0e0',
             color: mode === 'hidden' ? '#fff' : '#666',
@@ -104,13 +236,13 @@ function Ratings({ userId }) {
         >
           Хидден-джемовость
         </button>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.9rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: compact ? '0.72rem' : '0.9rem' }}>
           <input
             type="checkbox"
             checked={hideUnpopular}
             onChange={(e) => setHideUnpopular(e.target.checked)}
           />
-          Скрыть города с менее чем 10 голосами
+          Скрыть {entity === 'city' ? 'города' : 'страны'} с менее чем 10 голосами
         </label>
       </div>
       {loading ? (
@@ -121,32 +253,73 @@ function Ratings({ userId }) {
         <div style={{ maxHeight: 600, overflowY: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
-              <tr style={{ background: '#f0f0f0' }}>
-                {['#', 'Город', 'Страна', '📊', '❤️', '👎', '🤷‍♂️'].map(col => (
-                  <th
-                    key={col}
-                    style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === col ? '#e0eaff' : undefined }}
-                    onClick={() => handleSort(col)}
-                  >
-                    {col} {sortColumn === col ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+              {entity === 'city' ? (
+                <tr style={{ background: '#f0f0f0' }}>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
+                    # {sortColumn === '#' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
                   </th>
-                ))}
-              </tr>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === 'Город' ? '#e0eaff' : undefined }} onClick={() => handleSort('Город')}>
+                    Город {sortColumn === 'Город' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === 'Страна' ? '#e0eaff' : undefined }} onClick={() => handleSort('Страна')}>
+                    Страна {sortColumn === 'Страна' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '📊' ? '#e0eaff' : undefined }} onClick={() => handleSort('📊')}>
+                    📊 {sortColumn === '📊' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
+                    ❤️ {sortColumn === '❤️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
+                    👎 {sortColumn === '👎' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
+                    🤷‍♂️ {sortColumn === '🤷‍♂️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                </tr>
+              ) : (
+                <tr style={{ background: '#f0f0f0' }}>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
+                    # {sortColumn === '#' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === 'Страна' ? '#e0eaff' : undefined }} onClick={() => handleSort('Страна')}>
+                    Страна {sortColumn === 'Страна' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '📊' ? '#e0eaff' : undefined }} onClick={() => handleSort('📊')}>
+                    📊 {sortColumn === '📊' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
+                    ❤️ {sortColumn === '❤️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
+                    👎 {sortColumn === '👎' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
+                    🤷‍♂️ {sortColumn === '🤷‍♂️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                </tr>
+              )}
             </thead>
             <tbody>
-              {sortedRatings.map((city, idx) => (
-                <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
+              {sortedRatings.map((item, idx) => (
+                <tr key={entity === 'city' ? item.cityId : item.country} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: 4 }}>{idx + 1}</td>
-                  <td style={{ padding: 4 }}>{city.flag} {city.name}</td>
-                  <td style={{ padding: 4 }}>{city.country}</td>
+                  {entity === 'city' ? (
+                    <>
+                      <td style={{ padding: 4 }}>{item.flag} {item.name}</td>
+                      <td style={{ padding: 4 }}>{item.country}</td>
+                    </>
+                  ) : (
+                    <td style={{ padding: 4 }}>{item.flag} {item.country}</td>
+                  )}
                   <td style={{ padding: 4 }}>
                     {mode === 'overall'
-                      ? (city.rating * 100).toFixed(1) + '%'
-                      : (city.hiddenJamScore * 100).toFixed(1) + '%'}
+                      ? (item.rating !== null ? (item.rating * 100).toFixed(1) + '%' : '—')
+                      : (item.hiddenJamScore !== null ? (item.hiddenJamScore * 100).toFixed(1) + '%' : '—')}
                   </td>
-                  <td style={{ padding: 4 }}>{city.likes || 0}</td>
-                  <td style={{ padding: 4 }}>{city.dislikes || 0}</td>
-                  <td style={{ padding: 4 }}>{city.dont_know || 0}</td>
+                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.likes)}</td>
+                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.dislikes)}</td>
+                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.dont_know)}</td>
                 </tr>
               ))}
             </tbody>
