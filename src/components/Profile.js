@@ -369,19 +369,19 @@ function Profile({ userId }) {
                   Не был
                 </button>
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1rem', background: '#fff', borderRadius: 8, overflow: 'hidden', tableLayout: 'fixed' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1rem', background: '#fff', borderRadius: 8, overflow: 'hidden', tableLayout: isMobile ? 'auto' : 'fixed' }}>
                 <thead>
                   <tr style={{ background: '#f0f0f0' }}>
-                    <th style={{ textAlign: 'left', padding: 8, width: '50%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                    <th style={{ textAlign: 'left', padding: 8, width: isMobile ? undefined : '50%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
                       {isMobile ? '🏙️' : 'Город'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('name')}</span>
                     </th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rating')}>
+                    <th style={{ textAlign: 'left', padding: 8, width: isMobile ? undefined : '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('rating')}>
                       {isMobile ? '📊' : 'Рейтинг'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('rating')}</span>
                     </th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vote')}>
+                    <th style={{ textAlign: 'left', padding: 8, width: isMobile ? undefined : '15%', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('vote')}>
                       {isMobile ? '📝' : 'Оценка'} <span style={{ fontSize: '0.9em' }}>{getSortIcon('vote')}</span>
                     </th>
-                    <th style={{ textAlign: 'left', padding: 8, width: '20%' }}>{isMobile ? '✏️' : 'Изменить'}</th>
+                    <th style={{ textAlign: 'left', padding: 8, width: isMobile ? undefined : '20%' }}>{isMobile ? '✏️' : 'Изменить'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -395,7 +395,7 @@ function Profile({ userId }) {
                       </td>
                       <td style={{ padding: 8, fontSize: '1.2rem', width: '15%' }}>{VOTE_EMOJIS[city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know' ? city.voteType : null]}</td>
                       <td style={{ padding: 8, width: '20%', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? 2 : 4, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                           {['liked', 'disliked', 'dont_know'].map(type => {
                             const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
                             const isCurrent = hasVoted && city.voteType === type;
@@ -414,8 +414,8 @@ function Profile({ userId }) {
                               transform: 'scale(1)',
                               transition: 'all 0.2s ease',
                               fontSize: '1.1rem',
-                              minWidth: 28,
-                              minHeight: 28,
+                              minWidth: isMobile ? 24 : 28,
+                              minHeight: isMobile ? 24 : 28,
                               textAlign: 'center',
                               verticalAlign: 'middle',
                               lineHeight: 1.2
