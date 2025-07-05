@@ -12,6 +12,7 @@ function Ratings({ userId, compact }) {
   const [sortColumn, setSortColumn] = useState('#');
   const [sortDirection, setSortDirection] = useState('asc');
   const [allCities, setAllCities] = useState([]); // for country ratings
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -182,8 +183,16 @@ function Ratings({ userId, compact }) {
     return num.toString();
   }
 
+  // Responsive: detect mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 600);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
-    <div className="ratings-ui">
+    <div className="ratings-ui" style={{ paddingLeft: isMobile ? 0 : undefined, paddingRight: isMobile ? 0 : undefined, width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
       <div style={{ marginBottom: compact ? '0.2rem' : '0.5rem', display: 'flex', flexDirection: 'row', gap: compact ? 8 : 12, alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'flex-start', textAlign: 'left' }}>
         <button
           onClick={() => setEntity('city')}
@@ -222,51 +231,55 @@ function Ratings({ userId, compact }) {
           Страны
         </button>
       </div>
-      <div style={{ marginBottom: compact ? '0.7rem' : '1rem', display: 'flex', flexDirection: 'row', gap: compact ? 8 : 12, alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'flex-start', textAlign: 'left' }}>
-        <button
-          onClick={() => setMode('overall')}
-          style={{
-            fontWeight: mode === 'overall' ? 'bold' : 'normal',
-            marginRight: compact ? 4 : 8,
-            border: 'none',
-            borderRadius: 12,
-            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
-            fontSize: compact ? '0.75rem' : '1rem',
-            cursor: 'pointer',
-            background: mode === 'overall' ? '#4f8cff' : '#e0e0e0',
-            color: mode === 'overall' ? '#fff' : '#666',
-            transition: 'all 0.2s ease',
-            boxShadow: mode === 'overall' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
-          }}
-        >
-          Общий рейтинг
-        </button>
-        <button
-          onClick={() => setMode('hidden')}
-          style={{
-            fontWeight: mode === 'hidden' ? 'bold' : 'normal',
-            marginRight: compact ? 8 : 16,
-            border: 'none',
-            borderRadius: 12,
-            padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
-            fontSize: compact ? '0.75rem' : '1rem',
-            cursor: 'pointer',
-            background: mode === 'hidden' ? '#4f8cff' : '#e0e0e0',
-            color: mode === 'hidden' ? '#fff' : '#666',
-            transition: 'all 0.2s ease',
-            boxShadow: mode === 'hidden' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
-          }}
-        >
-          Хидден-джемовость
-        </button>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: compact ? '0.72rem' : '0.9rem' }}>
-          <input
-            type="checkbox"
-            checked={hideUnpopular}
-            onChange={(e) => setHideUnpopular(e.target.checked)}
-          />
-          Скрыть {entity === 'city' ? 'города' : 'страны'} с менее чем 10 голосами
-        </label>
+      <div style={{ marginBottom: compact ? '0.7rem' : '1rem', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: compact ? 8 : 12, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'nowrap', justifyContent: 'flex-start', textAlign: 'left' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: compact ? 8 : 12 }}>
+          <button
+            onClick={() => setMode('overall')}
+            style={{
+              fontWeight: mode === 'overall' ? 'bold' : 'normal',
+              marginRight: compact ? 4 : 8,
+              border: 'none',
+              borderRadius: 12,
+              padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+              fontSize: compact ? '0.75rem' : '1rem',
+              cursor: 'pointer',
+              background: mode === 'overall' ? '#4f8cff' : '#e0e0e0',
+              color: mode === 'overall' ? '#fff' : '#666',
+              transition: 'all 0.2s ease',
+              boxShadow: mode === 'overall' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
+            }}
+          >
+            Общий рейтинг
+          </button>
+          <button
+            onClick={() => setMode('hidden')}
+            style={{
+              fontWeight: mode === 'hidden' ? 'bold' : 'normal',
+              marginRight: compact ? 8 : 16,
+              border: 'none',
+              borderRadius: 12,
+              padding: compact ? '0.5rem 1.1rem' : '0.7rem 1.5rem',
+              fontSize: compact ? '0.75rem' : '1rem',
+              cursor: 'pointer',
+              background: mode === 'hidden' ? '#4f8cff' : '#e0e0e0',
+              color: mode === 'hidden' ? '#fff' : '#666',
+              transition: 'all 0.2s ease',
+              boxShadow: mode === 'hidden' ? '0 2px 8px rgba(79, 140, 255, 0.3)' : 'none'
+            }}
+          >
+            Хидден-джемовость
+          </button>
+        </div>
+        <div style={{ marginTop: isMobile ? 8 : 0, width: isMobile ? '100%' : 'auto' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: compact ? '0.72rem' : '0.9rem', width: '100%' }}>
+            <input
+              type="checkbox"
+              checked={hideUnpopular}
+              onChange={(e) => setHideUnpopular(e.target.checked)}
+            />
+            Скрыть {entity === 'city' ? 'города' : 'страны'} с менее чем 10 голосами
+          </label>
+        </div>
       </div>
       {loading ? (
         <div className="placeholder">Loading ratings...</div>
@@ -274,7 +287,22 @@ function Ratings({ userId, compact }) {
         <div className="placeholder">{error}</div>
       ) : (
         <div style={{ maxHeight: 600, overflowY: 'auto', width: '100%' }}>
-          <table className="ratings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <table className="ratings-table" style={{ width: '100%', minWidth: 0, borderCollapse: 'collapse', fontSize: isMobile ? '0.85rem' : '0.9rem', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: isMobile ? '8%' : '5%' }} />
+              {entity === 'city' ? (
+                <>
+                  <col style={{ width: isMobile ? '40%' : '28%' }} />
+                  <col style={{ width: isMobile ? '52%' : '18%' }} />
+                </>
+              ) : (
+                <col style={{ width: isMobile ? '92%' : '30%' }} />
+              )}
+              <col style={{ width: isMobile ? '18%' : '12%' }} />
+              {!isMobile && <col style={{ width: '7%' }} />}
+              {!isMobile && <col style={{ width: '7%' }} />}
+              {!isMobile && <col style={{ width: '7%' }} />}
+            </colgroup>
             <thead>
               {entity === 'city' ? (
                 <tr style={{ background: '#f0f0f0' }}>
@@ -290,15 +318,15 @@ function Ratings({ userId, compact }) {
                   <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '📊' ? '#e0eaff' : undefined }} onClick={() => handleSort('📊')}>
                     📊 {sortColumn === '📊' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
                   </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
                     ❤️ {sortColumn === '❤️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
+                  </th>}
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
                     👎 {sortColumn === '👎' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
+                  </th>}
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
                     🤷‍♂️ {sortColumn === '🤷‍♂️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
+                  </th>}
                 </tr>
               ) : (
                 <tr style={{ background: '#f0f0f0' }}>
@@ -311,38 +339,38 @@ function Ratings({ userId, compact }) {
                   <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '📊' ? '#e0eaff' : undefined }} onClick={() => handleSort('📊')}>
                     📊 {sortColumn === '📊' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
                   </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '❤️' ? '#e0eaff' : undefined }} onClick={() => handleSort('❤️')}>
                     ❤️ {sortColumn === '❤️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
+                  </th>}
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '👎' ? '#e0eaff' : undefined }} onClick={() => handleSort('👎')}>
                     👎 {sortColumn === '👎' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
+                  </th>}
+                  {!isMobile && <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '🤷‍♂️' ? '#e0eaff' : undefined }} onClick={() => handleSort('🤷‍♂️')}>
                     🤷‍♂️ {sortColumn === '🤷‍♂️' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
-                  </th>
+                  </th>}
                 </tr>
               )}
             </thead>
             <tbody>
               {sortedRatings.map((item, idx) => (
                 <tr key={entity === 'city' ? item.cityId : item.country} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: 4, textAlign: 'center' }}>{idx + 1}</td>
+                  <td style={{ padding: 4, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{idx + 1}</td>
                   {entity === 'city' ? (
                     <>
-                      <td style={{ padding: 4 }}>{item.flag} {item.name}</td>
-                      <td style={{ padding: 4 }}>{item.country}</td>
+                      <td style={{ padding: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.flag} {item.name}</td>
+                      <td style={{ padding: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.country}</td>
                     </>
                   ) : (
-                    <td style={{ padding: 4 }}>{item.flag} {item.country}</td>
+                    <td style={{ padding: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.flag} {item.country}</td>
                   )}
-                  <td style={{ padding: 4 }}>
+                  <td style={{ padding: 4, minWidth: 48, maxWidth: 80, textAlign: 'left', overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' }}>
                     {mode === 'overall'
                       ? (item.rating !== null ? (item.rating * 100).toFixed(1) + '%' : '—')
                       : (item.hiddenJamScore !== null ? (item.hiddenJamScore * 100).toFixed(1) + '%' : '—')}
                   </td>
-                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.likes)}</td>
-                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.dislikes)}</td>
-                  <td style={{ padding: 4, fontSize: '0.8em' }}>{formatVotes(item.dont_know)}</td>
+                  {!isMobile && <td style={{ padding: 4, fontSize: '0.8em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatVotes(item.likes)}</td>}
+                  {!isMobile && <td style={{ padding: 4, fontSize: '0.8em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatVotes(item.dislikes)}</td>}
+                  {!isMobile && <td style={{ padding: 4, fontSize: '0.8em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatVotes(item.dont_know)}</td>}
                 </tr>
               ))}
             </tbody>
