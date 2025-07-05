@@ -83,14 +83,20 @@ function Ratings({ userId, compact }) {
               }
             });
           }
+          // Calculate country-level hiddenJamScore using the same formula as for cities
+          const totalVotes = likes + dislikes;
+          const totalResponses = likes + dislikes + dont_know;
+          const rating = totalVotes > 0 ? (likes / totalVotes) : 0;
+          const popularity = totalResponses > 0 ? (totalVotes / totalResponses) : 0;
+          const hiddenJamScore = totalResponses > 0 ? rating * (1 - popularity) : null;
           return {
             country,
             flag,
             likes,
             dislikes,
             dont_know,
-            rating: ratingCount > 0 ? ratingSum / ratingCount : null,
-            hiddenJamScore: hiddenCount > 0 ? hiddenSum / hiddenCount : null
+            rating: (likes + dislikes) > 0 ? likes / (likes + dislikes) : null,
+            hiddenJamScore
           };
         });
         setRatings(countryRatings);
@@ -272,7 +278,7 @@ function Ratings({ userId, compact }) {
             <thead>
               {entity === 'city' ? (
                 <tr style={{ background: '#f0f0f0' }}>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
+                  <th style={{ textAlign: 'center', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
                     # {sortColumn === '#' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
                   </th>
                   <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === 'Город' ? '#e0eaff' : undefined }} onClick={() => handleSort('Город')}>
@@ -296,7 +302,7 @@ function Ratings({ userId, compact }) {
                 </tr>
               ) : (
                 <tr style={{ background: '#f0f0f0' }}>
-                  <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
+                  <th style={{ textAlign: 'center', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === '#' ? '#e0eaff' : undefined }} onClick={() => handleSort('#')}>
                     # {sortColumn === '#' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
                   </th>
                   <th style={{ textAlign: 'left', padding: 4, cursor: 'pointer', userSelect: 'none', background: sortColumn === 'Страна' ? '#e0eaff' : undefined }} onClick={() => handleSort('Страна')}>
@@ -320,7 +326,7 @@ function Ratings({ userId, compact }) {
             <tbody>
               {sortedRatings.map((item, idx) => (
                 <tr key={entity === 'city' ? item.cityId : item.country} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: 4 }}>{idx + 1}</td>
+                  <td style={{ padding: 4, textAlign: 'center' }}>{idx + 1}</td>
                   {entity === 'city' ? (
                     <>
                       <td style={{ padding: 4 }}>{item.flag} {item.name}</td>

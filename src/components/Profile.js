@@ -217,20 +217,18 @@ function Profile({ userId }) {
       ) : (
         filteredCountries.sort().map(country => {
           const countryCities = grouped[country];
-          // Calculate country overall rating
+          // Calculate country overall rating and hidden-gem score using the same formula as in Ratings.js
           let totalLikes = 0, totalDislikes = 0, totalDontKnow = 0;
-          let ratingSum = 0, ratingCount = 0;
           countryCities.forEach(city => {
             totalLikes += city.likes || 0;
             totalDislikes += city.dislikes || 0;
             totalDontKnow += city.dont_know || 0;
-            if (typeof city.rating === 'number' && ((city.likes || 0) + (city.dislikes || 0) >= 10)) {
-              ratingSum += city.rating;
-              ratingCount++;
-            }
           });
-          // Country overall rating: weighted average of city ratings (or just average)
-          const countryRating = ratingCount > 0 ? ratingSum / ratingCount : null;
+          const totalVotes = totalLikes + totalDislikes;
+          const totalResponses = totalLikes + totalDislikes + totalDontKnow;
+          const countryRating = totalVotes > 0 ? totalLikes / totalVotes : null;
+          const popularity = totalResponses > 0 ? (totalVotes / totalResponses) : 0;
+          const hiddenJamScore = totalResponses > 0 ? (countryRating || 0) * (1 - popularity) : null;
           // Sorting logic
           const sort = countrySorts[country] || { column: 'name', direction: 'asc' };
           const sortedCities = [...countryCities].sort((a, b) => {
@@ -387,7 +385,7 @@ function Profile({ userId }) {
                 <tbody>
                   {sortedCities.map(city => (
                     <tr key={city.cityId} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: 8, width: '50%' }}>{city.name}</td>
+                      <td style={{ padding: 8, width: 'auto', minWidth: 0, maxWidth: isMobile ? undefined : '50%' }}>{city.name}</td>
                       <td style={{ padding: 8, width: '15%' }}>
                         {(city.rating !== null && ((city.likes || 0) + (city.dislikes || 0) >= 10))
                           ? Math.round(city.rating * 100) + '%'
@@ -395,7 +393,7 @@ function Profile({ userId }) {
                       </td>
                       <td style={{ padding: 8, fontSize: '1.2rem', width: '15%' }}>{VOTE_EMOJIS[city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know' ? city.voteType : null]}</td>
                       <td style={{ padding: 8, width: '20%', textAlign: 'left' }}>
-                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? 2 : 4, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
                           {['liked', 'disliked', 'dont_know'].map(type => {
                             const hasVoted = city.voteType === 'liked' || city.voteType === 'disliked' || city.voteType === 'dont_know';
                             const isCurrent = hasVoted && city.voteType === type;
